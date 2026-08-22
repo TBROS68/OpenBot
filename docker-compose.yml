@@ -165,13 +165,19 @@ services:
       # host: the server calls it over localhost, and other containers use the compose network.
       - "127.0.0.1:${BOT_PORT:-4200}:4200"
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # Server sends this on every call to the managed Bot. It refuses to start without it.
       MANAGED_AGENT_TOKEN: ${MANAGED_AGENT_TOKEN:-}
+      # This Bot speaks the OpenAI API, so it knows openai and deepseek; any other OpenAI-shaped
+      # endpoint is reached through OPENAI_BASE_URL.
+      BOT_PROVIDER: ${BOT_PROVIDER:-openai}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
       # Unset means OpenAI. Set, it is any endpoint speaking the same API, and BOT_MODEL is sent
       # to it verbatim.
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-      BOT_MODEL: ${BOT_MODEL:-gpt-5.5}
+      # Empty hands the Bot its provider's default model.
+      BOT_MODEL: ${BOT_MODEL:-}
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"await fetch('http://localhost:4200/health')\""]
       interval: 10s
@@ -198,7 +204,10 @@ services:
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_GENERATIVE_AI_BASE_URL: ${GOOGLE_GENERATIVE_AI_BASE_URL:-}
-      BOT_MODEL: ${BOT_MODEL:-gpt-5.5}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      # Empty hands the Bot its provider's default model.
+      BOT_MODEL: ${BOT_MODEL:-}
       BOT_RESPONSES_API: ${BOT_RESPONSES_API:-false}
       # Where this Bot runs a tool: back through the deployment that granted it, never at the vendor.
       # `host.docker.internal` because the API server runs on the host, not in this network.

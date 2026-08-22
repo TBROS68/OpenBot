@@ -62,6 +62,24 @@ test("gives both shipped Bots the OpenAI-compatible endpoint", () => {
   }
 });
 
+/**
+ * DeepSeek speaks the same API, so its key and base URL reach both Bots exactly the way OpenAI's
+ * do: a deployment that moved its models there and found one Bot still calling OpenAI would have
+ * no way to tell.
+ */
+test("gives both shipped Bots the DeepSeek credential and endpoint", () => {
+  const compose = readFileSync(
+    join(import.meta.dir, "..", "docker-compose.yml"),
+    "utf8",
+  );
+
+  for (const variable of ["DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL"]) {
+    expect(
+      compose.match(new RegExp(`${variable}: \\$\\{${variable}:-?\\}`, "g")),
+    ).toHaveLength(2);
+  }
+});
+
 test("enables pgvector before creating vector columns", () => {
   const migration = readFileSync(
     join(import.meta.dir, "..", "server", "drizzle", "0000_schema.sql"),

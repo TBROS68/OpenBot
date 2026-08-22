@@ -53,7 +53,7 @@ A Bot is any endpoint speaking [AG-UI](https://github.com/ag-ui-protocol/ag-ui),
 - Docker, for PostgreSQL and the shipped Bots.
 - [Bun](https://bun.sh) 1.3+, for the app and API server.
 - A CopilotKit Intelligence project and license. A free plan is available, and Intelligence can be self-hosted.
-- A model key. The proof-of-concept Bot uses OpenAI; the LangGraph Bot can use OpenAI, Anthropic, or Google.
+- A model key. The proof-of-concept Bot uses OpenAI or DeepSeek; the LangGraph Bot can use OpenAI, Anthropic, Google, or DeepSeek.
 
 ## Quick start
 
@@ -77,7 +77,7 @@ A Bot is any endpoint speaking [AG-UI](https://github.com/ag-ui-protocol/ag-ui),
 
 3. Fill the remaining required values:
 
-   - `OPENAI_API_KEY`
+   - `OPENAI_API_KEY`, or `DEEPSEEK_API_KEY` with `BOT_PROVIDER=deepseek` (DeepSeek speaks the same API; see `docs/configuration.md`)
 
    Keep the managed Intelligence URLs from `.env.example` unless you run Intelligence yourself. The example `KEY_ENCRYPTION_KEY` is public and fine locally; generate your own with:
 

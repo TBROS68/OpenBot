@@ -25,28 +25,69 @@ if (!MANAGED_AGENT_TOKEN) {
   process.exit(1);
 }
 /**
+ * Which provider drives the Bot.
+ *
+ * This service speaks `/v1/chat/completions`, so every provider it knows answers that API: OpenAI
+ * itself, DeepSeek, or anything reached through the provider's base URL. A provider here is a key,
+ * a base URL and a default model rather than another streaming loop.
+ */
+const PROVIDER = (process.env.BOT_PROVIDER ?? "openai").toLowerCase();
+if (PROVIDER !== "openai" && PROVIDER !== "deepseek") {
+  console.error(
+    `BOT_PROVIDER=${PROVIDER} is not one this Bot knows. Use openai or deepseek.`,
+  );
+  process.exit(1);
+}
+
+/**
  * Which model drives the Bot.
  *
  * `gpt-5.5` works through `/v1/chat/completions`, which is the API this file uses.
  *
  * `gpt-5.6-*` models require the Responses API for tool use and cannot be used by this
  * chat-completions streaming loop.
+ *
+ * `deepseek-chat` and `deepseek-reasoner` are DeepSeek's own catalogue names, sent verbatim.
+ *
+ * An unset model and an empty one are the same thing: compose hands `${BOT_MODEL:-}` through as an
+ * empty string, and a provider's default answers that.
  */
-const MODEL = process.env.BOT_MODEL ?? "gpt-5.5";
+const MODEL =
+  process.env.BOT_MODEL?.trim() ||
+  (PROVIDER === "deepseek" ? "deepseek-chat" : "gpt-5.5");
 
 /**
  * Where that model is answered from.
  *
- * Unset, this is OpenAI. Set, it is any endpoint speaking the same `/v1/chat/completions` API: a
- * gateway in front of several providers, a proxy, or a model on hardware you control. Which is the
- * point of writing against that API by hand rather than against one company's URL.
+ * Unset, this is OpenAI, or DeepSeek's own API when `BOT_PROVIDER=deepseek`. Set, it is any
+ * endpoint speaking the same `/v1/chat/completions` API: a gateway in front of several providers,
+ * a proxy, or a model on hardware you control. Which is the point of writing against that API by
+ * hand rather than against one company's URL.
  *
  * `BOT_MODEL` is sent verbatim, because an endpoint names its own catalogue.
  */
-const BASE_URL = process.env.OPENAI_BASE_URL?.trim() || undefined;
+const BASE_URL =
+  PROVIDER === "deepseek"
+    ? process.env.DEEPSEEK_BASE_URL?.trim() || "https://api.deepseek.com/v1"
+    : process.env.OPENAI_BASE_URL?.trim() || undefined;
+
+/**
+ * Each provider reads its own key. A deployment that only runs DeepSeek never needs an OpenAI
+ * key, which is the point of naming the key after the provider.
+ */
+const API_KEY =
+  PROVIDER === "deepseek"
+    ? process.env.DEEPSEEK_API_KEY
+    : process.env.OPENAI_API_KEY;
+if (!API_KEY?.trim()) {
+  console.error(
+    `${PROVIDER === "deepseek" ? "DEEPSEEK_API_KEY" : "OPENAI_API_KEY"} is not set, and BOT_PROVIDER=${PROVIDER} needs it. This Bot cannot answer without a model.`,
+  );
+  process.exit(1);
+}
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: API_KEY,
   baseURL: BASE_URL,
 });
 

@@ -39,11 +39,13 @@ All four Intelligence values are required together. Missing any of them stops se
 | `DEPLOYMENT_ID`      | the tenant package's id            | Names this deployment inside a shared Intelligence project.          |
 | `OPENAI_API_KEY`     | unset                              | Default model key for built-in agents and both shipped Bots.        |
 | `OPENAI_BASE_URL`    | unset                              | OpenAI-compatible endpoint that key is spent against. See below.    |
-| `BOT_PROVIDER`       | `openai`                           | Provider for `agent-langgraph`: `openai`, `anthropic`, or `google`. |
+| `BOT_PROVIDER`       | `openai`                           | Provider for `agent-langgraph`: `openai`, `anthropic`, `google`, or `deepseek`. `agent-bot` knows `openai` and `deepseek`. |
 | `ANTHROPIC_API_KEY`  | unset                              | Anthropic key when `BOT_PROVIDER=anthropic`.                        |
 | `ANTHROPIC_BASE_URL` | unset                              | Anthropic-compatible endpoint that key is spent against.            |
 | `GOOGLE_API_KEY`     | unset                              | Google key when `BOT_PROVIDER=google`.                              |
 | `GOOGLE_GENERATIVE_AI_BASE_URL` | unset                   | Google-compatible endpoint that key is spent against.               |
+| `DEEPSEEK_API_KEY`   | unset                              | DeepSeek key when `BOT_PROVIDER=deepseek`.                          |
+| `DEEPSEEK_BASE_URL`  | `https://api.deepseek.com/v1`      | DeepSeek-compatible endpoint that key is spent against.             |
 | `BOT_MODEL`          | provider default from Bot code/env | Model used by the shipped Bots.                                     |
 | `BOT_RESPONSES_API`  | `false`                            | Makes `agent-langgraph` use the OpenAI Responses API.               |
 | `AGENT_STALL_TIMEOUT_MS` | unset (off)                    | How long a Bot's stream may produce nothing before the turn is ended for it. |
@@ -91,6 +93,20 @@ model:
 Most gateways publish a model list, which is the way to check a name before configuring it.
 
 Two things are worth knowing before pointing a deployment at any gateway. Not every catalogue entry accepts tools, and a Bot without tool calling cannot drive its computer; the model list says which do. And `BOT_RESPONSES_API=true` needs an endpoint that implements the Responses API, not only chat completions.
+
+## DeepSeek
+
+DeepSeek speaks OpenAI's `/v1/chat/completions` API, so it is a provider rather than a base URL: both shipped Bots know `BOT_PROVIDER=deepseek`, read `DEEPSEEK_API_KEY`, and send `BOT_MODEL` to `DEEPSEEK_BASE_URL`, which defaults to DeepSeek's own API.
+
+```sh
+BOT_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-...
+BOT_MODEL=deepseek-chat        # or deepseek-reasoner
+```
+
+A deployment whose built-in agents should move there at the same time keeps its own name for the same API: `OPENAI_BASE_URL=https://api.deepseek.com/v1` with the same key, and the tenant package's `default_model` set to the DeepSeek catalogue name.
+
+The same tool caveat as any gateway applies: pick a DeepSeek model that accepts function tools, or the Bot cannot drive its computer.
 
 ## Authentication
 

@@ -92,10 +92,18 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL?.trim() || undefined;
 const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL?.trim() || undefined;
 const GOOGLE_BASE_URL =
   process.env.GOOGLE_GENERATIVE_AI_BASE_URL?.trim() || undefined;
+/**
+ * DeepSeek speaks OpenAI's `/v1/chat/completions` API, so its branch is the OpenAI integration
+ * pointed at its own URL under its own key rather than another integration. Unset, this is
+ * DeepSeek's own API; set, any endpoint speaking the same API.
+ */
+const DEEPSEEK_BASE_URL =
+  process.env.DEEPSEEK_BASE_URL?.trim() || "https://api.deepseek.com/v1";
 
 function defaultModelFor(provider: string): string {
   if (provider === "anthropic") return "claude-sonnet-4-5";
   if (provider === "google") return "gemini-2.5-flash";
+  if (provider === "deepseek") return "deepseek-chat";
   return "gpt-5.5";
 }
 
@@ -110,12 +118,13 @@ const KEY_VARIABLE: Record<string, string> = {
   openai: "OPENAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   google: "GOOGLE_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
 };
 
 const keyVariable = KEY_VARIABLE[PROVIDER];
 if (!keyVariable) {
   console.error(
-    `BOT_PROVIDER=${PROVIDER} is not one this Bot knows. Use openai, anthropic or google.`,
+    `BOT_PROVIDER=${PROVIDER} is not one this Bot knows. Use openai, anthropic, google or deepseek.`,
   );
   process.exit(1);
 }
@@ -220,6 +229,16 @@ function buildModel() {
       apiKey: API_KEY,
       streaming: true,
       ...(GOOGLE_BASE_URL ? { baseUrl: GOOGLE_BASE_URL } : {}),
+    });
+  }
+  if (PROVIDER === "deepseek") {
+    // The OpenAI integration owns the HTTP; DeepSeek is that HTTP under its own URL and key.
+    // No `useResponsesApi` here: that is OpenAI's own newer API, not part of the shared shape.
+    return new ChatOpenAI({
+      model: MODEL,
+      apiKey: API_KEY,
+      streaming: true,
+      configuration: { baseURL: DEEPSEEK_BASE_URL },
     });
   }
   return new ChatOpenAI({
