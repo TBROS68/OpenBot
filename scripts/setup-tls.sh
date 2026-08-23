@@ -156,8 +156,7 @@ $(green "TLS is live.")
 
 Certificates renew automatically; nothing to schedule.
 
-Sign-in can be configured now: set any of the Google / Microsoft / Okta
-variables in $INSTALL_DIR/.env (or register SAML / OIDC at
-Admin -> Identity providers), with BETTER_AUTH_URL already pointing at
-https://$DOMAIN. See docs/configuration.md.
+Sign-in can be configured now: scripts/setup-signin.sh walks through Google,
+Microsoft or Okta (or register SAML / OIDC at Admin -> Identity providers
+later). BETTER_AUTH_URL already points at https://$DOMAIN.
 EOF
