@@ -45,3 +45,20 @@ export function saveActionPolicyMutationOptions(queryClient: QueryClient) {
     onSuccess: () => invalidateComputers(queryClient),
   });
 }
+
+/**
+ * Forget the saved policy, falling back to what the deployment's configuration says.
+ *
+ * Needed because the saved policy wins over configuration at boot: an administrator who edits
+ * `AGENT_COMPUTER_POLICY` would otherwise keep enforcing whatever was saved here last.
+ */
+export function resetActionPolicyMutationOptions(queryClient: QueryClient) {
+  return mutationOptions({
+    mutationFn: (): Promise<ActionPolicy> =>
+      client("/api/computers/policy", "policy", {
+        method: "DELETE",
+        fallback: "The boundary could not be reset.",
+      }),
+    onSuccess: () => invalidateComputers(queryClient),
+  });
+}

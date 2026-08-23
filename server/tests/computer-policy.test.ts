@@ -477,3 +477,117 @@ describe("commands", () => {
     expect(decision.allowed).toBe(true);
   });
 });
+
+/**
+ * The default boundary scripts/setup-policy.sh and scripts/install-vps.sh write into
+ * AGENT_COMPUTER_POLICY. Kept here verbatim so the shipped rule is tested, not paraphrased: the
+ * scripts write exactly these expressions into .env, and a rule that is wrong here is wrong in
+ * every deployment the scripts produce.
+ */
+describe("the default social media boundary", () => {
+  const social = {
+    mode: "enforce" as const,
+    deny: [
+      'intent == "navigate" && (contains(page.host, "facebook.com") || contains(page.host, "instagram.com") || contains(page.host, "x.com") || contains(page.host, "twitter.com") || contains(page.host, "linkedin.com") || contains(page.host, "tiktok.com") || contains(page.host, "youtube.com") || contains(page.host, "reddit.com") || contains(page.host, "threads.net") || contains(page.host, "bsky.app") || contains(page.host, "t.me") || contains(page.host, "telegram.org") || contains(page.host, "zalo.me"))',
+      'intent == "activate" && (contains(page.host, "facebook.com") || contains(page.host, "instagram.com") || contains(page.host, "x.com") || contains(page.host, "twitter.com") || contains(page.host, "linkedin.com") || contains(page.host, "tiktok.com") || contains(page.host, "youtube.com") || contains(page.host, "reddit.com") || contains(page.host, "threads.net") || contains(page.host, "bsky.app")) && (contains(element.name, "post") || contains(element.name, "tweet") || contains(element.name, "publish") || contains(element.name, "share") || contains(element.name, "comment"))',
+      'intent == "type" && contains(element.name, "password")',
+    ],
+    allow: ["true"],
+  };
+
+  const navigate = (host: string): PolicyContext => ({
+    tool: { name: "computer_navigate" },
+    bot: { id: "content" },
+    actor: { id: "someone" },
+    page: { url: `https://${host}/`, host },
+    intent: "navigate",
+  });
+
+  const activateOn = (
+    host: string,
+    name: string,
+  ): PolicyContext => ({
+    tool: { name: "computer_click" },
+    bot: { id: "content" },
+    actor: { id: "someone" },
+    page: { url: `https://${host}/compose`, host },
+    intent: "activate",
+    element: { ref: "e1", role: "button", name },
+  });
+
+  test("refuses opening a social platform", () => {
+    expect(evaluateActionPolicy(social, navigate("x.com")).allowed).toBe(false);
+    expect(
+      evaluateActionPolicy(social, navigate("www.facebook.com")).allowed,
+    ).toBe(false);
+    expect(evaluateActionPolicy(social, navigate("t.me")).allowed).toBe(false);
+  });
+
+  test("leaves everywhere else open", () => {
+    expect(
+      evaluateActionPolicy(social, navigate("en.wikipedia.org")).allowed,
+    ).toBe(true);
+    // A host that merely contains a platform's name elsewhere is not that platform.
+    expect(
+      evaluateActionPolicy(social, navigate("news.ycombinator.com")).allowed,
+    ).toBe(true);
+  });
+
+  test("refuses activating a post control on a social platform", () => {
+    expect(
+      evaluateActionPolicy(social, activateOn("x.com", "Post")).allowed,
+    ).toBe(false);
+    expect(
+      evaluateActionPolicy(social, activateOn("facebook.com", "Share now"))
+        .allowed,
+    ).toBe(false);
+  });
+
+  test("a post-labelled control somewhere else is allowed", () => {
+    expect(
+      evaluateActionPolicy(social, activateOn("cms.internal", "Publish"))
+        .allowed,
+    ).toBe(true);
+  });
+
+  test("refuses typing into a password field anywhere", () => {
+    const decision = evaluateActionPolicy(social, {
+      tool: { name: "computer_type" },
+      bot: { id: "content" },
+      actor: { id: "someone" },
+      page: { url: "https://example.com/login", host: "example.com" },
+      intent: "type",
+      element: { ref: "e2", role: "textbox", name: "Password", type: "password" },
+    });
+    expect(decision.allowed).toBe(false);
+  });
+
+  test("a command and a tool call pass the boundary untouched", () => {
+    // The neutral empty fields keep these browser rules false rather than
+    // unevaluable against non-browser actions, so the default boundary never
+    // refuses a shell command or an MCP call for a reason about social media.
+    const command = evaluateActionPolicy(social, {
+      tool: { name: "computer_run_command" },
+      bot: { id: "content" },
+      actor: { id: "someone" },
+      page: { url: "", host: "" },
+      element: { ref: "", role: "", name: "", type: "" },
+      key: "",
+      intent: "run_command",
+      command: "ls -la",
+    });
+    expect(command.allowed).toBe(true);
+
+    const toolCall = evaluateActionPolicy(social, {
+      tool: { name: "mcp__notes__search_notes" },
+      bot: { id: "content" },
+      actor: { id: "someone" },
+      page: { url: "", host: "" },
+      element: { ref: "", role: "", name: "", type: "" },
+      key: "",
+      intent: "read_tool",
+      mcp: { server: "notes", tool: "search_notes", effect: "read" },
+    });
+    expect(toolCall.allowed).toBe(true);
+  });
+});

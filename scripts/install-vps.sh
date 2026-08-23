@@ -27,6 +27,9 @@
 #   COPILOTKIT_LICENSE_TOKEN                              (required)
 #   PUBLIC_PORT           port the product answers on (default: 3001)
 #   OPENBOT_SINGLE_USER   one administrator, no sign-in (default: true)
+#   SOCIAL_POLICY         enforce | dry-run | off    (default: enforce)
+#                         default-deny boundary for social media; same rules as
+#                         scripts/setup-policy.sh
 
 set -euo pipefail
 
@@ -43,6 +46,11 @@ INTELLIGENCE_API_KEY="${INTELLIGENCE_API_KEY:-}"
 COPILOTKIT_LICENSE_TOKEN="${COPILOTKIT_LICENSE_TOKEN:-}"
 PUBLIC_PORT="${PUBLIC_PORT:-3001}"
 OPENBOT_SINGLE_USER="${OPENBOT_SINGLE_USER:-true}"
+SOCIAL_POLICY="${SOCIAL_POLICY:-enforce}"
+case "$SOCIAL_POLICY" in
+  enforce|dry-run|off) ;;
+  *) printf '\033[31mSOCIAL_POLICY must be enforce, dry-run or off (got: %s)\033[0m\n' "$SOCIAL_POLICY"; exit 1 ;;
+esac
 
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
 red()   { printf '\033[31m%s\033[0m\n' "$1"; }
@@ -168,6 +176,15 @@ set_env COPILOTKIT_LICENSE_TOKEN "$COPILOTKIT_LICENSE_TOKEN"
 set_env BOT_PROVIDER "$MODEL_PROVIDER"
 set_env OPENBOT_SINGLE_USER "$OPENBOT_SINGLE_USER"
 
+# The default social media boundary, the same one scripts/setup-policy.sh
+# writes. Bots are refused opening social platforms, activating their
+# post/share/comment controls and typing into password fields; everything else
+# is allowed and audited. Each clause is guarded by the intent or tool that
+# carries the field it reads, because an unevaluable deny counts as a match.
+if [ "$SOCIAL_POLICY" != "off" ]; then
+  set_env AGENT_COMPUTER_POLICY '{"mode":"'"$SOCIAL_POLICY"'","deny":["intent == \"navigate\" && (contains(page.host, \"facebook.com\") || contains(page.host, \"instagram.com\") || contains(page.host, \"x.com\") || contains(page.host, \"twitter.com\") || contains(page.host, \"linkedin.com\") || contains(page.host, \"tiktok.com\") || contains(page.host, \"youtube.com\") || contains(page.host, \"reddit.com\") || contains(page.host, \"threads.net\") || contains(page.host, \"bsky.app\") || contains(page.host, \"t.me\") || contains(page.host, \"telegram.org\") || contains(page.host, \"zalo.me\"))","intent == \"activate\" && (contains(page.host, \"facebook.com\") || contains(page.host, \"instagram.com\") || contains(page.host, \"x.com\") || contains(page.host, \"twitter.com\") || contains(page.host, \"linkedin.com\") || contains(page.host, \"tiktok.com\") || contains(page.host, \"youtube.com\") || contains(page.host, \"reddit.com\") || contains(page.host, \"threads.net\") || contains(page.host, \"bsky.app\")) && (contains(element.name, \"post\") || contains(element.name, \"tweet\") || contains(element.name, \"publish\") || contains(element.name, \"share\") || contains(element.name, \"comment\"))","intent == \"type\" && contains(element.name, \"password\")"],"allow":["true"]}'
+fi
+
 if [ "$MODEL_PROVIDER" = "deepseek" ]; then
   set_env DEEPSEEK_API_KEY "$MODEL_API_KEY"
   set_env OPENAI_API_KEY ""
@@ -280,4 +297,8 @@ sign-in. scripts/setup-tls.sh does the TLS half automatically once a domain
 points at this machine: sudo bash scripts/setup-tls.sh your.domain.com
 Sign-in stays off while OPENBOT_SINGLE_USER=true, which makes every visitor
 the one administrator. See docs/configuration.md.
+
+The social media boundary is on by default: Bots cannot open social
+platforms or post on them. Adjust it with scripts/setup-policy.sh or on the
+Admin -> Boundaries screen.
 EOF

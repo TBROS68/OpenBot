@@ -2,7 +2,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageSection, PageShell } from "@/components/layout/page-shell";
-import { saveActionPolicyMutationOptions } from "@/lib/computers/mutations";
+import {
+  resetActionPolicyMutationOptions,
+  saveActionPolicyMutationOptions,
+} from "@/lib/computers/mutations";
 import {
   type ActionPolicy,
   actionPolicyQueryOptions,
@@ -37,6 +40,11 @@ const PRESETS: { label: string; rule: string; cost?: string }[] = [
     rule: 'intent == "navigate" && (contains(page.host, "facebook.com") || contains(page.host, "x.com"))',
     cost: "Only the two hosts named. A link that redirects there from somewhere else is allowed.",
   },
+  {
+    label: "Never post on social media",
+    rule: 'intent == "activate" && (contains(page.host, "x.com") || contains(page.host, "twitter.com") || contains(page.host, "facebook.com") || contains(page.host, "instagram.com") || contains(page.host, "linkedin.com") || contains(page.host, "tiktok.com") || contains(page.host, "youtube.com")) && (contains(element.name, "post") || contains(element.name, "tweet") || contains(element.name, "publish") || contains(element.name, "share"))',
+    cost: "Matches the button's label: a page that calls its post button something else is not covered.",
+  },
 ];
 
 export const Route = createFileRoute("/_authed/admin/boundaries")({
@@ -50,6 +58,7 @@ function BoundariesPage() {
 
   const stored = useQuery(actionPolicyQueryOptions());
   const savePolicy = useMutation(saveActionPolicyMutationOptions(queryClient));
+  const resetPolicy = useMutation(resetActionPolicyMutationOptions(queryClient));
 
   /*
    * The saved policy wins while a save is in flight and after it lands: the server normalises what
@@ -64,6 +73,19 @@ function BoundariesPage() {
     savePolicy.mutate(next, {
       onError: (thrown: Error) => setProblem(thrown.message),
       onSuccess: () => setSaved(true),
+    });
+  };
+
+  /*
+   * The saved policy wins over the deployment's configuration at boot, so changing
+   * AGENT_COMPUTER_POLICY does nothing until this row is removed. Resetting is the only honest way
+   * to make the configuration the source of truth again.
+   */
+  const reset = () => {
+    setSaved(false);
+    setProblem(null);
+    resetPolicy.mutate(undefined, {
+      onError: (thrown: Error) => setProblem(thrown.message),
     });
   };
 
@@ -88,6 +110,8 @@ function BoundariesPage() {
     void save({ ...policy, deny: [...policy.deny, trimmed] });
     setDraft("");
   };
+
+  const resetting = resetPolicy.isPending;
 
   return (
     <PageShell
@@ -249,6 +273,27 @@ function BoundariesPage() {
         ) : (
           "Changes apply to the next action any Bot takes, and are kept: a restart comes back up enforcing what is here."
         )}
+      </p>
+
+      <p className="mt-4 text-muted-foreground text-xs">
+        This screen wins over <code>AGENT_COMPUTER_POLICY</code> once anything
+        here has been saved. {" "}
+        <button
+          className="underline"
+          disabled={resetting}
+          onClick={() => {
+            if (
+              window.confirm(
+                "Discard the rules saved here and go back to what the deployment's configuration says?",
+              )
+            ) {
+              reset();
+            }
+          }}
+          type="button"
+        >
+          {resetting ? "Resetting" : "Reset to the deployment's configuration"}
+        </button>
       </p>
     </PageShell>
   );

@@ -393,6 +393,21 @@ export function createComputerRoutes(
     return context.json({ policy: policyStore.get() });
   });
 
+  /**
+   * Forget the saved policy and fall back to this deployment's configuration.
+   *
+   * A boundary stored in the database wins over `AGENT_COMPUTER_POLICY` at boot, so an operator who
+   * changed the configuration has no way to see it take effect without this: the saved row would keep
+   * enforcing the old rules forever. Deleting it is what makes the configuration the source of truth
+   * again, which is what "reset" means on every other screen in the product.
+   */
+  routes.delete("/policy", requireUser, async (context) => {
+    const denied = requireAdmin(context);
+    if (denied) return denied;
+    await policyStore.reset();
+    return context.json({ policy: policyStore.get() });
+  });
+
   return routes;
 }
 
