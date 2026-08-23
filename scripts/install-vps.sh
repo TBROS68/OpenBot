@@ -275,8 +275,9 @@ Useful commands:
   docker compose logs -f          container logs (run from $INSTALL_DIR)
   $INSTALL_DIR/.env               all configuration, secrets included
 
-Before opening this to the internet: put TLS in front of it (a reverse proxy
-such as Caddy does this automatically) and configure sign-in. Sign-in stays
-off while OPENBOT_SINGLE_USER=true, which makes every visitor the one
-administrator. See docs/configuration.md.
+Before opening this to the internet: put TLS in front of it and configure
+sign-in. scripts/setup-tls.sh does the TLS half automatically once a domain
+points at this machine: sudo bash scripts/setup-tls.sh your.domain.com
+Sign-in stays off while OPENBOT_SINGLE_USER=true, which makes every visitor
+the one administrator. See docs/configuration.md.
 EOF
